@@ -11,6 +11,8 @@ from io import BytesIO
 import requests
 import logging
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
