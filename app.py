@@ -63,17 +63,12 @@ def fetch_pdf(token: str):
         if datetime.now(timezone.utc) > expires:
             return "Link expired", 403
         
-        # 3. Get signed URL from Supabase Storage
-         
+        # 3. Get PDF from public bucket
+        storage_path = info["pdf_path"]
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/secure-pdfs/{quote(storage_path)}"
-        pdf_response = requests.get(public_url)
-        
-        if not signed_url:
-            log.error(f"Failed to get signed URL for {storage_path}")
-            abort(500)
         
         # 4. Fetch PDF bytes
-        pdf_response = requests.get(signed_url)
+        pdf_response = requests.get(public_url)
         if pdf_response.status_code != 200:
             log.error(f"Failed to fetch PDF: {pdf_response.status_code}")
             abort(500)
@@ -106,7 +101,6 @@ def fetch_pdf(token: str):
     except Exception as e:
         log.exception(f"fetch_pdf failed: {token}")
         abort(500)
-
-
+        
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
