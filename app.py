@@ -63,9 +63,9 @@ def fetch_pdf(token: str):
             return "Link expired", 403
         
         # 3. Get signed URL from Supabase Storage
-        storage_path = info["pdf_path"]
-        signed = sb.storage.from_("secure-pdfs").create_signed_url(storage_path, 60)
-        signed_url = signed.get("signedURL") or signed.get("signedUrl")
+          from urllib.parse import quote
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/secure-pdfs/{quote(storage_path)}"
+        pdf_response = requests.get(public_url)
         
         if not signed_url:
             log.error(f"Failed to get signed URL for {storage_path}")
