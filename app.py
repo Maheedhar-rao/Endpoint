@@ -11,6 +11,7 @@ from io import BytesIO
 import requests
 import logging
 import os
+from urllib.parse import quote
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -63,7 +64,7 @@ def fetch_pdf(token: str):
             return "Link expired", 403
         
         # 3. Get signed URL from Supabase Storage
-          from urllib.parse import quote
+         
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/secure-pdfs/{quote(storage_path)}"
         pdf_response = requests.get(public_url)
         
