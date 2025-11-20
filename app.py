@@ -31,9 +31,9 @@ sb: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE)
 
 @app.get("/docs/<token>")
 def docs_page(token: str):
-    """Landing page with download button"""
+    """Landing page with download button - logs the view"""
     # Validate token exists
-    result = sb.table("pdf_links").select("lender_name, deal_id, expires_at").eq("token", token).execute()
+    result = sb.table("pdf_links").select("*").eq("token", token).execute()
     if not result.data:
         return "Invalid link.", 404
     
@@ -43,6 +43,22 @@ def docs_page(token: str):
     expires = datetime.fromisoformat(info["expires_at"].replace("Z", "+00:00"))
     if datetime.now(timezone.utc) > expires:
         return "Link expired.", 410
+    
+    # Log view
+    try:
+        sb.table("pdf_views").insert({
+            "token": token,
+            "tracking_id": info.get("tracking_id"),
+            "deal_id": info.get("deal_id"),
+            "lender_name": info.get("lender_name"),
+            "recipient_email": info.get("recipient_email"),
+            "ip": request.headers.get("X-Forwarded-For", request.remote_addr),
+            "user_agent": request.headers.get("User-Agent", "")[:500],
+            "viewed_at": datetime.now(timezone.utc).isoformat(),
+        }).execute()
+        log.info(f"👁️ View: {info.get('lender_name')} - {info.get('recipient_email')}")
+    except Exception as e:
+        log.warning(f"Failed to log view: {e}")
     
     return render_template("docs.html", token=token, lender=info.get("lender_name", ""))
 
