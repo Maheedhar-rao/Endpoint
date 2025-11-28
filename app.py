@@ -19,7 +19,7 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("pdf-proxy")
 
-# Supabase client
+
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE = os.environ.get("SUPABASE_SERVICE_ROLE")
 
@@ -32,19 +32,19 @@ sb: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE)
 @app.get("/docs/<token>")
 def docs_page(token: str):
     """Landing page with download button - logs the view"""
-    # Validate token exists
+    
     result = sb.table("pdf_links").select("*").eq("token", token).execute()
     if not result.data:
         return "Invalid link.", 404
     
     info = result.data[0]
     
-    # Check expiry
+   
     expires = datetime.fromisoformat(info["expires_at"].replace("Z", "+00:00"))
     if datetime.now(timezone.utc) > expires:
         return "Link expired.", 410
     
-    # Log view
+    
     try:
         sb.table("pdf_views").insert({
             "token": token,
@@ -67,23 +67,28 @@ def docs_page(token: str):
 def fetch_pdf(token: str):
     """Fetch PDF from Supabase, log download, serve to user"""
     try:
-        # 1. Lookup token
+        
         result = sb.table("pdf_links").select("*").eq("token", token).execute()
         if not result.data:
             abort(404)
         
         info = result.data[0]
         
-        # 2. Check expiry
+        
         expires = datetime.fromisoformat(info["expires_at"].replace("Z", "+00:00"))
         if datetime.now(timezone.utc) > expires:
             return "Link expired", 403
         
-        # 3. Get PDF from public bucket
+       
         storage_path = info["pdf_path"]
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/secure-pdfs/{quote(storage_path)}"
+
+
+        downloads = sb.table("pdf_downloads").select("*", count="exact").eq("token", token).execute()
+        if downloads.count >= 2:
+            return "Download limit exceeded.", 403
         
-        # 4. Fetch PDF bytes
+        
         pdf_response = requests.get(public_url)
         if pdf_response.status_code != 200:
             log.error(f"Failed to fetch PDF: {pdf_response.status_code}")
@@ -91,7 +96,7 @@ def fetch_pdf(token: str):
         
         pdf_bytes = pdf_response.content
         
-        # 5. Log download
+        
         sb.table("pdf_downloads").insert({
             "token": token,
             "tracking_id": info.get("tracking_id"),
@@ -105,7 +110,7 @@ def fetch_pdf(token: str):
         
         log.info(f"📥 Download: {info.get('lender_name')} - {info.get('recipient_email')}")
         
-        # 6. Serve file
+        
         filename = info.get("filename") or f"{info.get('lender_name', 'document')}.pdf"
         return send_file(
             BytesIO(pdf_bytes),
