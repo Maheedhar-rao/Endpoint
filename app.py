@@ -123,6 +123,11 @@ def fetch_pdf(token: str):
         log.exception(f"fetch_pdf failed: {token}")
         abort(500)
         
+@app.route("/docs/<token>")
+def docs_redirect(token):
+    return redirect(f"https://document.croccrm.com/docs/{token}", code=301)
+
+        
 if __name__ == "__main__":
      port = int(os.environ.get("PORT", 8080))
      app.run(host="0.0.0.0", port=port, debug=False)
