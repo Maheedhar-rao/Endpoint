@@ -81,7 +81,6 @@ def fetch_pdf(token: str):
         
        
         storage_path = info["pdf_path"]
-        public_url = f"{SUPABASE_URL}/storage/v1/object/public/secure-pdfs/{quote(storage_path)}"
 
 
         downloads = sb.table("pdf_downloads").select("*", count="exact").eq("token", token).execute()
@@ -89,12 +88,13 @@ def fetch_pdf(token: str):
             return "Download limit exceeded.", 403
         
         
-        pdf_response = requests.get(public_url)
-        if pdf_response.status_code != 200:
-            log.error(f"Failed to fetch PDF: {pdf_response.status_code}")
+        # secure-pdfs is a private bucket (made private 2026-10-14), so the
+        # public object URL returns 400. Download with the service key instead.
+        try:
+            pdf_bytes = sb.storage.from_("secure-pdfs").download(storage_path)
+        except Exception as e:
+            log.error(f"Failed to fetch PDF {storage_path}: {e}")
             abort(500)
-        
-        pdf_bytes = pdf_response.content
         
         
         sb.table("pdf_downloads").insert({
